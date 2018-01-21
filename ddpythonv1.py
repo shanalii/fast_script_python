@@ -7,9 +7,7 @@
 
 #testing: python ddpythonv1.py /psrdata/pmb/PM0026 PM0026_00511.sf
 
-import sys
-import timeit
-import os.path
+import sys, timeit, os.path, re, subprocess
 
 ##############################################
 
@@ -42,11 +40,67 @@ while os.path.exists("./" + foldername):
 		foldername = foldername[:-(len(str(x-1))+1)] + "_" + str(x)
 	x += 1
 os.makedirs(foldername)
+print("Data will be processed into the folder " + foldername + ". \n")
 
 #create link to the file to process within the local folder
 os.chdir(foldername)
 os.symlink(PATHNAME, FILENAME)
+print("Link to file " + FILENAME + " made. \n************************************************************* \n")
 
+##############################################
+'''
+#run rfifind
+print("Running rfifind. \n")
+start = timeit.default_timer()
+print("Filename: " + FILENAME + "\nTime: 2 \n")
+
+#spawn a shell process to run rfifind
+os.system("rfifind " + FILENAME + " -time 2 -o " + foldername + " >> /dev/null")
+
+end = timeit.default_timer()
+print("Time for rfifind: " + str(end - start) + " seconds.")
+'''
+##############################################
+
+print("Running DDplan.py:")
+start = timeit.default_timer()
+
+#constant values
+#low dm
+ldm = "0"
+#high dm
+hdm = "4000"
+#time resolution
+tres = "0.5"
+
+
+#make txt version of binary file header
+fname = foldername + ".txt"
+os.system("readfile " + FILENAME + " > " + fname)
+f = open(fname, "r")
+
+#obtain values from file
+for line in f:
+	#central frequency
+	if re.search("Central freq", line):
+		cfreq = line.split()[4]
+	#number of channels
+	if re.search("Number of channels", line):
+		numchan = line.split()[4]
+	#bandwidth
+	if re.search("Total Bandwidth", line):
+		bandw = line.split()[4]
+	#sample time
+	if re.search("Sample time", line):
+		sampletime = str(float(line.split()[4]) / 1000000)
+
+#run DDplan.py
+print("DM: 0 to 4000 \nTime resolution: 0.5 seconds \nCentral Frequency: " + cfreq + " MHz \nNumber of Channels: " + numchan + "\nTotal Bandwidth: " + bandw + " MHz \nSample Time: " + sampletime + " seconds") + "\n"
+os.system("DDplan.py -l " +  ldm + " -d " + hdm + " -f " + cfreq + " -b " + bandw + " -n " + numchan + " -t " + sampletime + " -r " + tres + " -o " + foldername + " | tee " + foldername + "_ddplaninfo.txt >> /dev/null")
+print("Results saved in " + foldername + "_ddplaninfo.txt. \n")
+
+end = timeit.default_timer()
+print("Time for DDplan: " + str(end - start) + " seconds.")
 
 ##############################################
 
