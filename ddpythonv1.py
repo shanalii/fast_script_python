@@ -48,9 +48,9 @@ os.symlink(PATHNAME, FILENAME)
 print("Link to file " + FILENAME + " made. \n************************************************************* \n")
 
 ##############################################
-'''
+
 #run rfifind
-print("Running rfifind. \n")
+print("Running rfifind to detect and mask RFI: \n")
 start = timeit.default_timer()
 print("Filename: " + FILENAME + "\nTime: 2 \n")
 
@@ -59,10 +59,10 @@ os.system("rfifind " + FILENAME + " -time 2 -o " + foldername + " >> /dev/null")
 
 end = timeit.default_timer()
 print("Time for rfifind: " + str(end - start) + " seconds.")
-'''
+
 ##############################################
 
-print("Running DDplan.py:")
+print("Running DDplan.py to compose de-dispersion plan:")
 start = timeit.default_timer()
 
 #constant values
@@ -102,6 +102,48 @@ print("Results saved in " + foldername + "_ddplaninfo.txt. \n")
 end = timeit.default_timer()
 print("Time for DDplan: " + str(end - start) + " seconds.")
 
+##############################################
+
+print("Running realfft for Forier transform:")
+start = timeit.default_timer()
+
+os.system("ls *.dat | xargs -n 1 --replace realfft {} >> /dev/null")
+
+end = timeit.default_timer()
+print("Time for realfft: " + str(end - start) + " seconds.")
+
+##############################################
+
+print("Running accelsearch to search for periodic candidates: \nUsing zmax = 0.")
+start = timeit.default_timer()
+
+os.system("ls *.fft | xargs -n 1 accelsearch -zmax 0 >> /dev/null")
+
+end = timeit.default_timer()
+print("Time for accelsearch: " + str(end - start) + " seconds.")
+
+##############################################
+
+print("Running ACCEL_sift.py to sift through periodic candidates:")
+start = timeit.default_timer()
+
+os.system("python $PRESTO/python/ACCEL_sift.py > cands.txt")
+print("Results saved in cands.txt.")
+
+end = timeit.default_timer()
+print("Time for ACCEL_sift: " + str(end - start) + " seconds.")
+
+##############################################
+'''
+#folding goes here.
+
+
+#display png files
+print("Folding finished, plots have been saved as the following .png files:")
+for file in os.listdir(os.getcwd()):
+    if file.endswith(".png"):
+        print(file)
+'''
 ##############################################
 
 ENDTIME = timeit.default_timer()
