@@ -7,7 +7,7 @@
 
 #testing: python ddpythonv1.py /psrdata/pmb/PM0026 PM0026_00511.sf
 
-import sys, timeit, os.path, re, subprocess
+import sys, timeit, os.path, re, subprocess, linecache
 
 ##############################################
 
@@ -49,6 +49,7 @@ print("Link to file " + FILENAME + " made. \n***********************************
 
 ##############################################
 
+print("************************************************************* \n")
 #run rfifind
 print("Running rfifind to detect and mask RFI: \n")
 start = timeit.default_timer()
@@ -59,9 +60,11 @@ os.system("rfifind " + FILENAME + " -time 2 -o " + foldername + " >> /dev/null")
 
 end = timeit.default_timer()
 print("Time for rfifind: " + str(end - start) + " seconds.")
+print("************************************************************* \n")
 
 ##############################################
 
+print("************************************************************* \n")
 print("Running DDplan.py to compose de-dispersion plan:")
 start = timeit.default_timer()
 
@@ -93,6 +96,12 @@ for line in f:
 	#sample time
 	if re.search("Sample time", line):
 		sampletime = str(float(line.split()[4]) / 1000000)
+	#numout
+	if re.search("Spectra per file", line):
+		numout = line.split()[4]
+	#nsub
+	if re.search("samples per spectra", line):
+		nsub = line.split()[4]
 
 #run DDplan.py
 print("DM: 0 to 4000 \nTime resolution: 0.5 seconds \nCentral Frequency: " + cfreq + " MHz \nNumber of Channels: " + numchan + "\nTotal Bandwidth: " + bandw + " MHz \nSample Time: " + sampletime + " seconds") + "\n"
@@ -101,9 +110,33 @@ print("Results saved in " + foldername + "_ddplaninfo.txt. \n")
 
 end = timeit.default_timer()
 print("Time for DDplan: " + str(end - start) + " seconds.")
+print("************************************************************* \n")
 
 ##############################################
 
+print("************************************************************* \n")
+print("Running subband de-dispersion using prepsubband:")
+start = timeit.default_timer()
+
+#call prepsubband on each call in DDplan, starting from line 14
+i = 14
+line = linecache.getline(foldername + "_ddplaninfo.txt", i)
+while line != "\n":
+	#put arguments into array
+	args = line.split()
+	#run prepsubband
+	print("Low DM: " + args[0] + "\nDM step: " + args[2] + "\nNumber of DMs: " + args[4] + "\nNumout: " + str(float(numout)/float(args[3])) + "\nDownsample: " + args[3] +"\n")
+	os.system("prepsubband -lodm " + args[0] + " -dmstep " + args[2] + " -numdms " + args[4] + " -numout " + str(int(numout)/int(args[3])) + " -downsamp " + args[3] + " -mask " + foldername + "_rfifind.mask -o " + foldername + " " + FILENAME + " >> /dev/null")
+	i += 1
+	line = linecache.getline(foldername + "_ddplaninfo.txt", i)
+
+end = timeit.default_timer()
+print("Time for de-dispersion: " + str(end - start) + " seconds.")
+print("************************************************************* \n")
+
+##############################################
+
+print("************************************************************* \n")
 print("Running realfft for Forier transform:")
 start = timeit.default_timer()
 
@@ -111,9 +144,11 @@ os.system("ls *.dat | xargs -n 1 --replace realfft {} >> /dev/null")
 
 end = timeit.default_timer()
 print("Time for realfft: " + str(end - start) + " seconds.")
+print("************************************************************* \n")
 
 ##############################################
 
+print("************************************************************* \n")
 print("Running accelsearch to search for periodic candidates: \nUsing zmax = 0.")
 start = timeit.default_timer()
 
@@ -121,9 +156,11 @@ os.system("ls *.fft | xargs -n 1 accelsearch -zmax 0 >> /dev/null")
 
 end = timeit.default_timer()
 print("Time for accelsearch: " + str(end - start) + " seconds.")
+print("************************************************************* \n")
 
 ##############################################
 
+print("************************************************************* \n")
 print("Running ACCEL_sift.py to sift through periodic candidates:")
 start = timeit.default_timer()
 
@@ -132,18 +169,48 @@ print("Results saved in cands.txt.")
 
 end = timeit.default_timer()
 print("Time for ACCEL_sift: " + str(end - start) + " seconds.")
+print("************************************************************* \n")
 
 ##############################################
-'''
-#folding goes here.
 
+print("************************************************************* \n")
+#fold best candidates using prepfold: referenced from Maura McLaughlin's siftandfold.bash:
+print("Running prepfold to fold best candidates and generate plots:")
+start = timeit.default_timer()
+
+#make 2D list of best candidates and their attributes: names, DMs, periods
+cands = open("cands.txt", "r")
+candlist = []
+for line in cands:
+	if re.search("ACCEL", line):
+		words = line.split()
+		c = [words[0], words[1], str(float(words[7])/1000)]
+		candlist.append(c)
+
+#loop prepfold through all viable candidates in candlist
+for c in candlist:
+	print("Running prepfold on candidate #" + str(candlist.index(c) + 1) + " of " + str(len(candlist)) + ":")
+	#filename and cand number of ACCEL_0 cands file, which are separated by : character in the candidate name in cands.txt
+	s = c[0].split(":")
+	accelfilename = s[0]
+	candnum = s[1]
+	#dat file name (the accelfilename without "_ACCEL_0"
+	datfilename = accelfilename[:-8]
+	#run prepfold command
+	print("File: " + datfilename + "\nCandidate number: " + candnum + "\nDM: " + c[1] + "\nnsub: " + nsub)
+	#fold raw data
+	os.system("prepfold -mask " + foldername + "_rfifind.mask -dm " + c[1] + " " + FILENAME + " -accelfile " + accelfilename + ".cand -accelcand " + candnum + " -noxwin -nosearch -o " + foldername + "_" + c[1] + " >> /dev/null")
 
 #display png files
 print("Folding finished, plots have been saved as the following .png files:")
 for file in os.listdir(os.getcwd()):
     if file.endswith(".png"):
         print(file)
-'''
+
+end = timeit.default_timer()
+print("Time for folding candidates: " + str(end - start) + " seconds.")
+print("************************************************************* \n")
+
 ##############################################
 
 ENDTIME = timeit.default_timer()
