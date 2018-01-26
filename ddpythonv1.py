@@ -137,7 +137,7 @@ print("************************************************************* \n")
 ##############################################
 
 print("************************************************************* \n")
-print("Running realfft for Forier transform:")
+print("Running realfft for Fourier transform:")
 start = timeit.default_timer()
 
 os.system("ls *.dat | xargs -n 1 --replace realfft {} >> /dev/null")
@@ -178,28 +178,23 @@ print("************************************************************* \n")
 print("Running prepfold to fold best candidates and generate plots:")
 start = timeit.default_timer()
 
-#make 2D list of best candidates and their attributes: names, DMs, periods
+#make 2D list of best candidates and their attributes: ACCEL_0 filename (0), dat file name (1), candidate number (2), DM (3)
+#period = str(float(words[7])/1000) (if ever needed)
 cands = open("cands.txt", "r")
 candlist = []
 for line in cands:
 	if re.search("ACCEL", line):
 		words = line.split()
-		c = [words[0], words[1], str(float(words[7])/1000)]
+		accelstring = words[0].split(":")
+		c = [accelstring[0], accelstring[0][:-8], accelstring[1], words[1]]
 		candlist.append(c)
 
 #loop prepfold through all viable candidates in candlist
 for c in candlist:
 	print("Running prepfold on candidate #" + str(candlist.index(c) + 1) + " of " + str(len(candlist)) + ":")
-	#filename and cand number of ACCEL_0 cands file, which are separated by : character in the candidate name in cands.txt
-	s = c[0].split(":")
-	accelfilename = s[0]
-	candnum = s[1]
-	#dat file name (the accelfilename without "_ACCEL_0"
-	datfilename = accelfilename[:-8]
 	#run prepfold command
-	print("File: " + datfilename + "\nCandidate number: " + candnum + "\nDM: " + c[1] + "\nnsub: " + nsub)
-	#fold raw data
-	os.system("prepfold -mask " + foldername + "_rfifind.mask -dm " + c[1] + " " + FILENAME + " -accelfile " + accelfilename + ".cand -accelcand " + candnum + " -noxwin -nosearch -o " + foldername + "_" + c[1] + " >> /dev/null")
+	print("File: " + c[1] + "\nCandidate number: " + c[2] + "\nDM: " + c[3] + "\nnsub: " + nsub + "\n")
+	os.system("prepfold -mask " + foldername + "_rfifind.mask -dm " + c[3] + " " + FILENAME + " -accelfile " + c[0] + ".cand -accelcand " + c[2] + " -noxwin -nosearch -o " + foldername + "_" + c[3] + " >> /dev/null")
 
 #display png files
 print("Folding finished, plots have been saved as the following .png files:")
@@ -215,6 +210,6 @@ print("************************************************************* \n")
 
 ENDTIME = timeit.default_timer()
 TOTALTIME = (ENDTIME - STARTTIME)
-print("Total time elapsed for processing " + "" + " : " + str(TOTALTIME) + " seconds.")
+print("Total time elapsed for processing : " + str(TOTALTIME) + " seconds.")
 
 exit(0)
