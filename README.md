@@ -17,7 +17,12 @@ Please view the wiki http://ism.bao.ac.cn/wiki/index.php/Pulsar_Summer_projects_
 
 Please install the following to run the script:
 
-* Scott Ransom's PRESTO package
+* Scott Ransom's PRESTO package (git://github.com/scottransom/presto.git)
+* FFTW (http://www.fftw.org/)
+* PGPLOT (http://www.astro.caltech.edu/~tjp/pgplot/)
+* CFITSIO (https://heasarc.gsfc.nasa.gov/fitsio/fitsio.html)
+* Tempo (git://git.code.sf.net/p/tempo/tempo)
+* LaTeX2HTML (http://www.latex2html.org/)
 
 ### Running the Script
 
