@@ -4,7 +4,7 @@ The original Bash version of the script can be found here: https://github.com/sh
 The script runs the PRESTO search pipeline to process raw radio telescope data and searches for pulsars. It runs rfifind, DDplan.py, prepsubband, realfft, accelsearch, accelsift, and prepfold, and in the end generates plots of the most likely pulsar candidates. The PRESTO package is required to run this script. 
 
 ## Package Contents
-* ddscriptv1.py - The Python script
+* ddscript.py - The Python script
 * ddscriptv13.bash - The most updated version of the original Bash script
 * LICENSE - The MIT License under which this project is licensed
 * README.md - This file
@@ -26,7 +26,7 @@ Please install the following to run the script:
 
 ### Running the Script
 
-Run the program on the command line:
+Run the program on the command line to process a raw radio telescope data file:
 
 ```
 python ddpythonv1.py directory_of_data_file filename
