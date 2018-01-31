@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/python
 #A script to do de-dispersion on a single file, involving making a link to said file and running rfifind, DDplan.py, prepdata, and realfft on it.
 #don't forget to do this on n04 -X!
 
@@ -16,6 +16,7 @@ STARTTIME = timeit.default_timer()
 print("*************************************************************")
 print("PRESTO data processing - now in Python \n")
 print("by Shana Li \n")
+print("Last updated 2018-01-31. \n")
 print("Arguments should be in the format: DIRECTORY FILENAME.")
 print("Filename SHOULD INCLUDE file extension (.sf).")
 print("************************************************************* \n")
@@ -27,11 +28,13 @@ PATHNAME = DIRECTORY + "/" + FILENAME
 #check validity of the path to file
 if not os.path.exists(PATHNAME):
 	print("Invalid DIRECTORY and/or FILENAME. Please check input and try again. \n ************************************************************* \n")
-	exit(0)
+	exit(1)
 
 #create new folder for data processing; if the file has already been processed here, create new folder with indexed name
-#folder name starts out with the FILENAME without the extension (assumed to be .sf)
-foldername = FILENAME[:-3]
+#folder name starts out with the FILENAME without the extension
+namearray = FILENAME.split(".")
+fextension = namearray[len(namearray)-1]
+foldername = FILENAME[:-(len(fextension)+1)]
 x = 1
 while os.path.exists("./" + foldername):
  	if x == 1:
@@ -53,10 +56,12 @@ print("************************************************************* \n")
 #run rfifind
 print("Running rfifind to detect and mask RFI: \n")
 start = timeit.default_timer()
-print("Filename: " + FILENAME + "\nTime: 2 \n")
+#time option for rfifind
+rfitime = "2"
+print("Filename: " + FILENAME + "\nTime: " + rfitime + " \n")
 
 #spawn a shell process to run rfifind
-os.system("rfifind " + FILENAME + " -time 2 -o " + foldername + " >> /dev/null")
+os.system("rfifind " + FILENAME + " -time " + rfitime + " -o " + foldername + " >> /dev/null")
 
 end = timeit.default_timer()
 print("Time for rfifind: " + str(end - start) + " seconds.")
@@ -99,12 +104,14 @@ for line in f:
 	#numout
 	if re.search("Spectra per file", line):
 		numout = line.split()[4]
+		if int(numout) & 1:
+			numout = str(int(numout) - 1)
 	#nsub
 	if re.search("samples per spectra", line):
 		nsub = line.split()[4]
 
 #run DDplan.py
-print("DM: 0 to 4000 \nTime resolution: 0.5 seconds \nCentral Frequency: " + cfreq + " MHz \nNumber of Channels: " + numchan + "\nTotal Bandwidth: " + bandw + " MHz \nSample Time: " + sampletime + " seconds") + "\n"
+print("DM: 0 to 4000 \nTime resolution: " + tres + " seconds \nCentral Frequency: " + cfreq + " MHz \nNumber of Channels: " + numchan + "\nTotal Bandwidth: " + bandw + " MHz \nSample Time: " + sampletime + " seconds") + "\n"
 os.system("DDplan.py -l " +  ldm + " -d " + hdm + " -f " + cfreq + " -b " + bandw + " -n " + numchan + " -t " + sampletime + " -r " + tres + " -o " + foldername + " | tee " + foldername + "_ddplaninfo.txt >> /dev/null")
 print("Results saved in " + foldername + "_ddplaninfo.txt. \n")
 
@@ -125,7 +132,7 @@ while line != "\n":
 	#put arguments into array
 	args = line.split()
 	#run prepsubband
-	print("Low DM: " + args[0] + "\nDM step: " + args[2] + "\nNumber of DMs: " + args[4] + "\nNumout: " + str(float(numout)/float(args[3])) + "\nDownsample: " + args[3] +"\n")
+	print("Low DM: " + args[0] + "\nDM step: " + args[2] + "\nNumber of DMs: " + args[4] + "\nNumout: " + str(float(numout)/float(args[3])) + "\nDownsample: " + args[3] + "\n")
 	os.system("prepsubband -lodm " + args[0] + " -dmstep " + args[2] + " -numdms " + args[4] + " -numout " + str(int(numout)/int(args[3])) + " -downsamp " + args[3] + " -mask " + foldername + "_rfifind.mask -o " + foldername + " " + FILENAME + " >> /dev/null")
 	i += 1
 	line = linecache.getline(foldername + "_ddplaninfo.txt", i)
@@ -152,7 +159,10 @@ print("************************************************************* \n")
 print("Running accelsearch to search for periodic candidates: \nUsing zmax = 0.")
 start = timeit.default_timer()
 
-os.system("ls *.fft | xargs -n 1 accelsearch -zmax 0 >> /dev/null")
+#values to use for accelsearch
+zmax = "0"
+
+os.system("ls *.fft | xargs -n 1 accelsearch -zmax " + zmax + " >> /dev/null")
 
 end = timeit.default_timer()
 print("Time for accelsearch: " + str(end - start) + " seconds.")
@@ -164,8 +174,8 @@ print("************************************************************* \n")
 print("Running ACCEL_sift.py to sift through periodic candidates:")
 start = timeit.default_timer()
 
-os.system("python $PRESTO/python/ACCEL_sift.py > cands.txt")
-print("Results saved in cands.txt.")
+os.system("python $PRESTO/python/ACCEL_sift.py > cands_zmax_" + zmax + ".txt")
+print("Results saved in cands_zmax_" + zmax + ".txt.")
 
 end = timeit.default_timer()
 print("Time for ACCEL_sift: " + str(end - start) + " seconds.")
@@ -180,7 +190,7 @@ start = timeit.default_timer()
 
 #make 2D list of best candidates and their attributes: ACCEL_0 filename (0), dat file name (1), candidate number (2), DM (3)
 #period = str(float(words[7])/1000) (if ever needed)
-cands = open("cands.txt", "r")
+cands = open("cands_zmax_" + zmax + ".txt", "r")
 candlist = []
 for line in cands:
 	if re.search("ACCEL", line):
