@@ -8,6 +8,7 @@ The script runs the PRESTO search pipeline to process raw radio telescope data a
 * ddscriptv13.bash - The most updated version of the original Bash script
 * LICENSE - The MIT License under which this project is licensed
 * README.md - This file
+* ddpython_report.pdf - A written report on this project's motivations, process, and results
 
 ## Getting Started
 
